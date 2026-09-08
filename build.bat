@@ -23,22 +23,22 @@ echo Using: %VisualStudioVersion%
 
 if not exist "build" mkdir build
 
-cl /nologo /W0 /MD /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api\steam_api.cpp /Fo:build\steam_api.obj
 
-cl /nologo /W0 /MD /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api_exports.cpp /Fo:build\steam_api_exports.obj
 
-cl /nologo /W0 /MD /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api\vgui_stubs.cpp /Fo:build\vgui_stubs.obj
 
-cl /nologo /W0 /MD /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api\dummy_funcs.cpp /Fo:build\dummy_funcs.obj
 
-cl /nologo /W0 /MD /Od /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /Od /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api\large_dummy.cpp /Fo:build\large_dummy.obj
 
-cl /nologo /W0 /MD /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
+cl /nologo /W0 /MT /O2 /D_USRDLL /D_WINDLL /DNOMINMAX ^
    /I"public" /c steam_api\dummy_padding.cpp /Fo:build\dummy_padding.obj
 
 link /DLL /DEF:steam_api.def /MACHINE:X86 /OUT:build\steam_api.dll ^
