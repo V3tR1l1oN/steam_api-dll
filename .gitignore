@@ -5,5 +5,8 @@ build/
 *.exp
 *.dll
 *.res
-*.bin
 *.log
+*.pdb
+*.ilk
+.vs/
+padding.bin

@@ -1,5 +1,41 @@
 // Auto-generated FULL implementations for steam_api.dll
-#include "..\public\steam\steam_api_goldsrc.h"
+#include "../../include/steam/steam_api_goldsrc.h"
+#include "diag_log.h"
+#include "../interfaces/steam_user.h"
+#include "../interfaces/steam_friends.h"
+#include "../interfaces/steam_utils.h"
+#include "../interfaces/steam_apps.h"
+#include "../interfaces/steam_networking.h"
+#include "../interfaces/steam_matchmaking.h"
+#include "../interfaces/steam_userstats.h"
+#include "../interfaces/steam_music.h"
+#include "../interfaces/steam_networking_sockets.h"
+#include "../interfaces/steam_networking_messages.h"
+
+// Прозрачное перенаправление вызовов в оригинальную steam_api.dll (когда она загружена).
+#include "proxy.h"
+
+// Возвращает адрес SteamInternal_GameServer_Init в оригинальной DLL (или 0).
+static void* GetGSInitTarget() {
+    SteamProxy::Instance().Init();
+    return SteamProxy::Instance().GetOriginal("SteamInternal_GameServer_Init");
+}
+
+#define FORWARD0(NAME) do { \
+    auto orig = (void*(*)())SteamProxy::Instance().GetOriginal("SteamAPI_ISteamClient_" #NAME); \
+    if (orig) return orig(); \
+    return (void*)1; \
+} while(0)
+#define FORWARD1(NAME, A) do { \
+    auto orig = (void*(*)(void*))SteamProxy::Instance().GetOriginal("SteamAPI_ISteamClient_" #NAME); \
+    if (orig) return orig((void*)(A)); \
+    return (void*)1; \
+} while(0)
+#define FORWARD2(NAME, A, B) do { \
+    auto orig = (void*(*)(void*, const char*))SteamProxy::Instance().GetOriginal("SteamAPI_ISteamClient_" #NAME); \
+    if (orig) return orig((void*)(A), (const char*)(B)); \
+    return (void*)1; \
+} while(0)
 
 // Interface singletons (defined in steam_api.cpp)
 extern CSteamClient s_SteamClient;
@@ -32,18 +68,18 @@ extern CSteamVideo s_SteamVideo;
 
 extern "C" {
 
-void* GetHSteamPipe() { return (void*)1; } // @1
-void* GetHSteamUser() { return (void*)1; } // @2
-void* SteamAPI_GetHSteamPipe() { return (void*)1; } // @3
-void* SteamAPI_GetHSteamUser() { return (void*)1; } // @4
-void* SteamAPI_GetSteamInstallPath() { return nullptr; } // @5
+void* GetHSteamPipe();
+void* GetHSteamUser();
+void* SteamAPI_GetHSteamPipe() { diag::log("call: SteamAPI_GetHSteamPipe"); return GetHSteamPipe(); } // @3
+void* SteamAPI_GetHSteamUser() { diag::log("call: SteamAPI_GetHSteamUser"); return GetHSteamUser(); } // @4
+void* SteamAPI_GetSteamInstallPath() { diag::log("call: SteamAPI_GetSteamInstallPath"); return nullptr; } // @5
 void* SteamAPI_ISteamAppList_GetAppBuildId() { return nullptr; } // @6
 void* SteamAPI_ISteamAppList_GetAppInstallDir() { return nullptr; } // @7
 void* SteamAPI_ISteamAppList_GetAppName() { return nullptr; } // @8
 void* SteamAPI_ISteamAppList_GetInstalledApps() { return nullptr; } // @9
 void* SteamAPI_ISteamAppList_GetNumInstalledApps() { return nullptr; } // @10
 void* SteamAPI_ISteamApps_BGetDLCDataByIndex() { return nullptr; } // @11
-bool SteamAPI_ISteamApps_BIsAppInstalled(int id) { return s_SteamApps.BIsAppInstalled(id); } // @12
+bool SteamAPI_ISteamApps_BIsAppInstalled(int id) { diag::log("call: BIsAppInstalled id=%d -> %d", id, (int)s_SteamApps.BIsAppInstalled(id)); return s_SteamApps.BIsAppInstalled(id); } // @12
 bool SteamAPI_ISteamApps_BIsCybercafe() { return s_SteamApps.BIsCybercafe(); } // @13
 bool SteamAPI_ISteamApps_BIsDlcInstalled(int id) { return s_SteamApps.BIsDlcInstalled(id); } // @14
 bool SteamAPI_ISteamApps_BIsLowViolence() { return s_SteamApps.BIsLowViolence(); } // @15
@@ -75,11 +111,11 @@ void* SteamAPI_ISteamApps_RequestAppProofOfPurchaseKey() { return nullptr; } // 
 void* SteamAPI_ISteamApps_SetAppBuildId() { return nullptr; } // @42
 void* SteamAPI_ISteamApps_StartAppInstallation() { return nullptr; } // @43
 void* SteamAPI_ISteamApps_UninstallDLC() { return nullptr; } // @44
-void* SteamAPI_ISteamClient_BReleaseSteamPipe(void* h) { return (void*)1; } // @45
+void* SteamAPI_ISteamClient_BReleaseSteamPipe(void* h) { diag::log("call: BReleaseSteamPipe h=%p", h); FORWARD1(BReleaseSteamPipe, h); } // @45
 void* SteamAPI_ISteamClient_BShutdownIfAllPipesClosed() { return (void*)0; } // @46
-void* SteamAPI_ISteamClient_ConnectToGlobalUser(void* h) { return (void*)1; } // @47
-void* SteamAPI_ISteamClient_CreateLocalUser(void* h, int b) { return (void*)1; } // @48
-void* SteamAPI_ISteamClient_CreateSteamPipe() { return (void*)1; } // @49
+void* SteamAPI_ISteamClient_ConnectToGlobalUser(void* h) { diag::log("call: ConnectToGlobalUser h=%p", h); FORWARD1(ConnectToGlobalUser, h); } // @47
+void* SteamAPI_ISteamClient_CreateLocalUser(void* h, int b) { diag::log("call: CreateLocalUser h=%p b=%d", h, b); FORWARD2(CreateLocalUser, h, b); } // @48
+void* SteamAPI_ISteamClient_CreateSteamPipe() { diag::log("call: CreateSteamPipe"); FORWARD0(CreateSteamPipe); } // @49
 void* SteamAPI_ISteamClient_GetCCallback() { return nullptr; } // @50
 void* SteamAPI_ISteamClient_GetCellID() { return nullptr; } // @51
 void* SteamAPI_ISteamClient_GetClientVersion() { return nullptr; } // @52
@@ -88,10 +124,10 @@ void* SteamAPI_ISteamClient_GetContentServerInfo() { return nullptr; } // @54
 void* SteamAPI_ISteamClient_GetCurrentBetaName() { return nullptr; } // @55
 void* SteamAPI_ISteamClient_GetIP() { return nullptr; } // @56
 void* SteamAPI_ISteamClient_GetISteamAppList() { return nullptr; } // @57
-void* SteamAPI_ISteamClient_GetISteamApps(const char* v) { return &s_SteamApps; } // @59
+void* SteamAPI_ISteamClient_GetISteamApps(const char* v) { diag::log("call: GetISteamApps v=%s", v?v:"?"); FORWARD1(GetISteamApps, v); } // @59
 void* SteamAPI_ISteamClient_GetISteamClient() { return nullptr; } // @61
 void* SteamAPI_ISteamClient_GetISteamController() { return nullptr; } // @62
-void* SteamAPI_ISteamClient_GetISteamFriends(void* h, const char* v) { return &s_SteamFriends; } // @63
+void* SteamAPI_ISteamClient_GetISteamFriends(void* h, const char* v) { diag::log("call: GetISteamFriends h=%p v=%s", h, v?v:"?"); FORWARD2(GetISteamFriends, h, v); } // @63
 void* SteamAPI_ISteamClient_GetISteamGameSearch() { return nullptr; } // @64
 void* SteamAPI_ISteamClient_GetISteamGameServer() { return nullptr; } // @65
 void* SteamAPI_ISteamClient_GetISteamGameServerStats() { return nullptr; } // @66
@@ -100,11 +136,11 @@ void* SteamAPI_ISteamClient_GetISteamHTMLSurface() { return nullptr; } // @68
 void* SteamAPI_ISteamClient_GetISteamHTTP() { return nullptr; } // @69
 void* SteamAPI_ISteamClient_GetISteamInput() { return nullptr; } // @70
 void* SteamAPI_ISteamClient_GetISteamInventory() { return nullptr; } // @71
-void* SteamAPI_ISteamClient_GetISteamMatchmaking(void* h, const char* v) { return &s_SteamMatchmaking; } // @72
-void* SteamAPI_ISteamClient_GetISteamMatchmakingServers(void* h, const char* v) { return &s_SteamMatchmaking; } // @73
+void* SteamAPI_ISteamClient_GetISteamMatchmaking(void* h, const char* v) { diag::log("call: GetISteamMatchmaking v=%s", v?v:"?"); FORWARD2(GetISteamMatchmaking, h, v); } // @72
+void* SteamAPI_ISteamClient_GetISteamMatchmakingServers(void* h, const char* v) { diag::log("call: GetISteamMatchmakingServers v=%s", v?v:"?"); return &s_SteamMatchmaking; } // @73
 void* SteamAPI_ISteamClient_GetISteamMusic() { return nullptr; } // @74
 void* SteamAPI_ISteamClient_GetISteamMusicRemote() { return nullptr; } // @75
-void* SteamAPI_ISteamClient_GetISteamNetworking(void* h, const char* v) { return &s_SteamNetworking; } // @76
+void* SteamAPI_ISteamClient_GetISteamNetworking(void* h, const char* v) { diag::log("call: GetISteamNetworking v=%s", v?v:"?"); FORWARD2(GetISteamNetworking, h, v); } // @76
 void* SteamAPI_ISteamClient_GetISteamNetworkingSockets() { return nullptr; } // @77
 void* SteamAPI_ISteamClient_GetISteamNetworkingUtils() { return nullptr; } // @78
 void* SteamAPI_ISteamClient_GetISteamParentalSettings() { return nullptr; } // @79
@@ -114,9 +150,9 @@ void* SteamAPI_ISteamClient_GetISteamRemoteStorage() { return nullptr; } // @82
 void* SteamAPI_ISteamClient_GetISteamScreenshots() { return nullptr; } // @83
 void* SteamAPI_ISteamClient_GetISteamSteamController() { return nullptr; } // @84
 void* SteamAPI_ISteamClient_GetISteamUGC() { return nullptr; } // @85
-void* SteamAPI_ISteamClient_GetISteamUser(void* h, const char* v) { return &s_SteamUser; } // @86
-void* SteamAPI_ISteamClient_GetISteamUserStats(void* h, const char* v) { return &s_SteamUser; } // @87
-void* SteamAPI_ISteamClient_GetISteamUtils(const char* v) { return &s_SteamUtils; } // @88
+void* SteamAPI_ISteamClient_GetISteamUser(void* h, const char* v) { diag::log("call: GetISteamUser h=%p v=%s", h, v?v:"?"); FORWARD2(GetISteamUser, h, v); } // @86
+void* SteamAPI_ISteamClient_GetISteamUserStats(void* h, const char* v) { diag::log("call: GetISteamUserStats v=%s", v?v:"?"); FORWARD2(GetISteamUserStats, h, v); } // @87
+void* SteamAPI_ISteamClient_GetISteamUtils(const char* v) { diag::log("call: GetISteamUtils v=%s", v?v:"?"); FORWARD1(GetISteamUtils, v); } // @88
 void* SteamAPI_ISteamClient_GetISteamVideo() { return nullptr; } // @89
 void* SteamAPI_ISteamClient_GetLocalIP() { return nullptr; } // @90
 void* SteamAPI_ISteamClient_GetMatchmaking() { return nullptr; } // @91
@@ -1887,7 +1923,7 @@ void* SteamAPI_InitAnonymousUser() { return nullptr; } // @922
 
 void* SteamAPI_InitSafe() { return nullptr; } // @923
 
-void* SteamAPI_IsSteamRunning() { return nullptr; } // @924
+void* SteamAPI_IsSteamRunning() { diag::log("call: SteamAPI_IsSteamRunning"); return (void*)1; } // @924
 
 void* SteamAPI_ManualDispatch_FreeLastCallback() { return nullptr; } // @925
 
@@ -1895,15 +1931,15 @@ void* SteamAPI_ManualDispatch_GetAPICallResult() { return nullptr; } // @926
 
 void* SteamAPI_ManualDispatch_GetNextCallback() { return nullptr; } // @927
 
-void* SteamAPI_ManualDispatch_Init() { return nullptr; } // @928
+void* SteamAPI_ManualDispatch_Init() { diag::log("call: SteamAPI_ManualDispatch_Init"); return nullptr; } // @928
 
 void* SteamAPI_ManualDispatch_RunFrame() { return nullptr; } // @929
 
 void* SteamAPI_MatchMakingKeyValuePair_t_Construct() { return nullptr; } // @930
 
-void* SteamAPI_RegisterCallResult() { return nullptr; } // @931
+void* SteamAPI_RegisterCallResult(void* result, void* apicall) { diag::log("call: SteamAPI_RegisterCallResult result=%p call=%p", result, apicall); auto orig = (void*(*)(void*, void*))SteamProxy::Instance().GetOriginal("SteamAPI_RegisterCallResult"); if (orig) { orig(result, apicall); diag::log("  -> forwarded to original"); } return nullptr; } // @931
 
-void* SteamAPI_RegisterCallback() { return nullptr; } // @932
+void* SteamAPI_RegisterCallback(void* callback, int idata) { diag::log("call: SteamAPI_RegisterCallback cb=%p size=%d", callback, idata); auto orig = (void*(*)(void*, int))SteamProxy::Instance().GetOriginal("SteamAPI_RegisterCallback"); if (orig) { orig(callback, idata); diag::log("  -> forwarded to original"); } else { diag::log("  !! no original SteamAPI_RegisterCallback"); } return nullptr; } // @932
 
 void* SteamAPI_ReleaseCurrentThreadMemory() { return nullptr; } // @933
 
@@ -2120,9 +2156,23 @@ void* SteamAPI_servernetadr_t_SetConnectionPort() { return nullptr; } // @1042
 void* SteamAPI_servernetadr_t_SetIP() { return nullptr; } // @1043
 
 void* SteamAPI_servernetadr_t_SetQueryPort() { return nullptr; } // @1044
-void* SteamInternal_CreateInterface(const char* name) { return nullptr; } // @1055
+void* SteamInternal_CreateInterface(const char* name) { diag::log("call: SteamInternal_CreateInterface name=%s", name?name:"?"); return nullptr; } // @1055
 
-void* SteamInternal_GameServer_Init() { return (void*)1; } // @1058
+// Транзит с неизвестной сигнатурой: параметры не трогаем, просто прыгаем в оригинал.
+// cdecl: стек очищает вызывающий, поэтому чистый jmp сохраняет все аргументы.
+__declspec(naked) void SteamInternal_GameServer_Init() {
+    __asm {
+        call    GSInitThunk
+        jmp     eax
+    GSInitThunk:
+        push    ecx
+        push    edx
+        call    GetGSInitTarget
+        pop     edx
+        pop     ecx
+        ret
+    }
+} // @1058
 
 } // extern "C"
 
