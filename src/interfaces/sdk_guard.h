@@ -111,7 +111,7 @@ public:
     virtual unsigned int GetInstalledDepots(AppId_t, unsigned int*, unsigned int);
     virtual unsigned int GetAppInstallDir(AppId_t, char*, unsigned int);
     virtual bool BIsAppInstalled(AppId_t);
-    virtual SdkSteamID GetAppOwner();
+    virtual __int64 GetAppOwner() { return 0x110000100001LL; }
     virtual const char* GetLaunchQueryParam(const char*);
     virtual bool GetDlcDownloadProgress(AppId_t, unsigned long long*, unsigned long long*);
     virtual int GetAppBuildId();

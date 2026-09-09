@@ -110,7 +110,6 @@ bool SdkSteamApps::MarkContentCorrupt(bool) { return false; }
 unsigned int SdkSteamApps::GetInstalledDepots(AppId_t, unsigned int*, unsigned int) { return 0; }
 unsigned int SdkSteamApps::GetAppInstallDir(AppId_t, char* folder, unsigned int sz) { if (folder && sz>0) { folder[0]='.'; folder[1]=0; } return 1; }
 bool SdkSteamApps::BIsAppInstalled(AppId_t) { return true; }
-SdkSteamID SdkSteamApps::GetAppOwner() { return SdkSteamID(0x110000100001ULL); }
 const char* SdkSteamApps::GetLaunchQueryParam(const char*) { return kEmpty; }
 bool SdkSteamApps::GetDlcDownloadProgress(AppId_t, unsigned long long*, unsigned long long*) { return false; }
 int SdkSteamApps::GetAppBuildId() { return 8689; }
@@ -234,3 +233,7 @@ bool SdkSteamMatchmaking::SetLinkedLobby(SdkSteamID, SdkSteamID) { return false;
 // Слоты 39-93 (PSN invite, server list callbacks, GameSearch, beacons) — универсальная заглушка не нужна:
 // они виртуальные, наследуются автоматически как no-op через общий vtable из заголовка.
 // Для точности добавляем пустые тела только для используемых движком.
+
+// SdkSteamUser::GetSteamID: движок вызывает vtable[2] и (по ABI Valve) не передаёт
+// sret-указатель, но MSVC генерирует запись по [ebp+8]. При невалидном адресе — AV.
+// SEH перехватывает AV, чтобы процесс не умирал.

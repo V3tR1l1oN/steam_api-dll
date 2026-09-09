@@ -1018,7 +1018,17 @@ uint64 SteamAPI_ISteamUser_GetSteamID() { return s_SteamUser.GetSteamID(); } // 
 bool SteamAPI_ISteamUser_GetUserDataFolder(char* buf, int len) { return s_SteamUser.GetUserDataFolder(buf, len); } // @968
 int SteamAPI_ISteamUser_GetVoice(void* buf, int len, bool b) { return s_SteamUser.GetVoice((char*)buf, len, b); } // @969
 int SteamAPI_ISteamUser_GetVoiceOptimalSampleRate() { return s_SteamUser.GetVoiceOptimalSampleRate(); } // @970
-int SteamAPI_ISteamUser_InitiateGameConnection(void* p, int n, uint64 id, int ip, short port, bool b) { return s_SteamUser.InitiateGameConnection(p, n, CSteamID(id), ip, port, b); } // @971
+int SteamAPI_ISteamUser_InitiateGameConnection(void* p, int n, uint64 id, int ip, short port, bool b) {
+    diag::log("InitiateGameConnection blob=%p n=%d ip=%u port=%d secure=%d", p, n, ip, port, (int)b);
+    auto orig = (int(*)(void*, int, uint64, int, short, bool))SteamProxy::Instance().GetOriginal("SteamAPI_ISteamUser_InitiateGameConnection");
+    if (orig && !p) { diag::log("  -> orig (blob=NULL)"); return orig(p, n, id, ip, port, b); }
+    if (orig) { int r = orig(p, n, id, ip, port, b); diag::log("  -> orig=%d", r); return r; }
+    // Оффлайн: защищённая запись фиктивного тикета
+    if (!p || n < 4) return 0;
+    unsigned char* blob = (unsigned char*)p;
+    blob[0] = 0x31; blob[1] = 0x00; blob[2] = 0x00; blob[3] = 0x10;
+    return 4;
+} // @971
 void* SteamAPI_ISteamUser_InitiateGameConnection_DEPRECATED() { return nullptr; } // @972
 void* SteamAPI_ISteamUser_LoggedOn() { return nullptr; } // @973
 void* SteamAPI_ISteamUser_RequestEncryptedAppTicket() { return nullptr; } // @974

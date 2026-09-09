@@ -51,7 +51,7 @@ target_compile_definitions(steam_api PRIVATE
 if(MSVC)
     target_compile_options(steam_api PRIVATE /W0 /Zc:threadSafeInit-)
     set_property(TARGET steam_api PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    target_link_options(steam_api PRIVATE /DEF:${CMAKE_CURRENT_SOURCE_DIR}/src/core/exports.def /GUARD:NO)
+    target_link_options(steam_api PRIVATE /DEF:${CMAKE_CURRENT_SOURCE_DIR}/src/core/exports.def /GUARD:NO /MAP:${CMAKE_CURRENT_BINARY_DIR}/steam_api.map)
     set_target_properties(steam_api PROPERTIES OUTPUT_NAME "steam_api")
 endif()
 

@@ -156,10 +156,20 @@ extern "C" {
         }
         void* d = &s_SdkUser; diag::log("  -> offline default User %p", d); return d;
     }
+    static bool g_gsInitAttempted = false;
     __declspec(dllexport) void* SteamInternal_FindOrCreateGameServerInterface(void* h, const char* v) {
         diag::log("FindOrCreateGameServerInterface h=%p v=%s", h, v ? v : "(null)");
         auto orig = (void*(*)(void*, const char*))SteamProxy::Instance().GetOriginal("SteamInternal_FindOrCreateGameServerInterface");
-        if (orig) { void* r = orig(h, v); diag::log("  -> orig=%p", r); return r; }
+        if (orig) {
+            // При первом запросе GameServer-интерфейса инициализируем GameServer в Valve DLL,
+            // иначе orig вернёт NULL и движок упадёт на vtable-вызове.
+            void* r = orig(h, v);
+            diag::log("  -> orig=%p", r);
+            // GS-протокол: движок сам вызывает SteamInternal_GameServer_Init через IAT
+            // и ПОСЛЕ этого повторяет запрос интерфейса. Возвращаем NULL как есть —
+            // это часть протокола Valve, fallback-объект здесь ломает инициализацию.
+            return r;
+        }
         void* r = &s_SdkUser; diag::log("  -> offline default (gs) %p", r); return r;
     }
     // Универсальная заглушка: движок может вызывать любой слот контекста как функцию
