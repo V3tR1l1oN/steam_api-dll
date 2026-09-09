@@ -12,6 +12,7 @@
 #include "../interfaces/steam_music.h"
 #include "../interfaces/sdk_guard.h"
 #include "../interfaces/sdk_client.h"
+#include "../interfaces/vproxy.h"
 
 // VEH: логирует точный адрес сбоя при краше в процессе игры
 static long __stdcall CrashHandler(PEXCEPTION_POINTERS ep) {
@@ -233,7 +234,8 @@ extern "C" {
                 int hUser = ((ConnectFn)vt[2])(client, hPipe);
                 diag::log("  steamclient pipe=%d user=%d", hPipe, hUser);
                 // ISteamClient021 vtable: [5]GetISteamUser [8]GetISteamFriends [9]GetISteamUtils
-                pCtxSlots[0] = ((GetIfaceFn)vt[5])(client, hUser, hPipe, "SteamUser023");
+                // VPROXY: лог-прокси вместо реального user — отловим call 0x0
+                pCtxSlots[0] = vproxy::GetProxyUserObj();
                 pCtxSlots[1] = ((GetIfaceFn)vt[8])(client, hUser, hPipe, "SteamFriends017");
                 typedef void* (__thiscall *GetUtilsFn)(void*, int, const char*);
                 pCtxSlots[2] = ((GetUtilsFn)vt[9])(client, hPipe, "SteamUtils010");
@@ -256,18 +258,44 @@ extern "C" {
             }
         }
         if (ctx) {
+            // ЭМУЛЯЦИЯ CALLBACK FLOW VALVE: движок после ContextInit ждёт, что
+            // интерфейсы были созданы через FindOrCreateUserInterface — при этом
+            // инициализируются подсистемы движка. Вызываем наш экспорт для
+            // каждого интерфейса (он отдаёт наши SDK-совместимые объекты).
+            void* pUser    = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamUser023");
+            void* pFriends = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamFriends017");
+            void* pUtils   = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamUtils010");
+            void* pMM      = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamMatchmaking009");
+            void* pStats   = SteamInternal_FindOrCreateUserInterface((void*)1, "STEAMUSERSTATS_INTERFACE_VERSION012");
+            void* pApps    = SteamInternal_FindOrCreateUserInterface((void*)1, "STEAMAPPS_INTERFACE_VERSION008");
+            diag::log("  flow: user=%p friends=%p utils=%p mm=%p stats=%p apps=%p",
+                pUser, pFriends, pUtils, pMM, pStats, pApps);
             // GetHSteamUser вызвался — движок идёт по слотам ПОДРЯД (CSteamAPIContext):
             // [0] ISteamUser, [1] ISteamFriends, [2] ISteamUtils, [3] ISteamMatchmaking,
             // [4] ISteamUserStats, [5] ISteamApps, [6] ISteamNetworking.
             // NULL-слот = вызов по нулю, поэтому ВСЕ слоты — валидные объекты.
-            pCtxSlots[0] = &s_SdkUser;
-            pCtxSlots[1] = &s_SdkFriends;
-            pCtxSlots[2] = &s_SteamUtils;
-            pCtxSlots[3] = &s_SteamMatchmaking;
-            pCtxSlots[4] = &s_SdkUserStats;
-            pCtxSlots[5] = &s_SdkApps;
+            pCtxSlots[0] = vproxy::GetProxyUserObj(); // LOG: отловим какой слот вызывает 0x0
+            pCtxSlots[1] = pFriends;
+            pCtxSlots[2] = pUtils;
+            pCtxSlots[3] = pMM;
+            pCtxSlots[4] = pStats;
+            pCtxSlots[5] = pApps;
             pCtxSlots[6] = &s_SdkNetworking;
-            diag::log("  -> filled 3 slots of engine ctx at %p", ctx);
+            // Стек-резолв показал: движок вызывает и слоты дальше [6] через
+            // CSteamAPIContext-подобную структуру (RemoteStorage, Screenshots,
+            // HTTP, Controller, UGC, AppList, Music, Video, Inventory, ...).
+            // Заполняем до 16 слотов нашими объектами, чтобы ни один вызов
+            // не ушёл в NULL.
+            pCtxSlots[7]  = &s_SdkApps;          // RemoteStorage
+            pCtxSlots[8]  = &s_SdkApps;          // Screenshots
+            pCtxSlots[9]  = &s_SdkApps;          // HTTP
+            pCtxSlots[10] = &s_SdkApps;          // Controller
+            pCtxSlots[11] = &s_SdkApps;          // UGC
+            pCtxSlots[12] = &s_SdkApps;          // AppList
+            pCtxSlots[13] = &s_SteamMusic;       // Music
+            pCtxSlots[14] = &s_SdkApps;          // MusicRemote
+            pCtxSlots[15] = &s_SdkApps;          // HTMLSurface
+            diag::log("  -> filled 16 slots of engine ctx at %p", ctx);
         }
         return ctx;
     }
@@ -308,6 +336,7 @@ extern "C" {
         return &s_SteamClient;
     }
     __declspec(dllexport) void* GetHSteamPipe() {
+        diag::log("exp: GetHSteamPipe");
         if (SteamProxy::Instance().IsSteamLoaded()) {
             auto orig = (void*(*)())SteamProxy::Instance().GetOriginal("GetHSteamPipe");
             if (orig) return orig();
@@ -315,6 +344,7 @@ extern "C" {
         return (void*)1;
     }
     __declspec(dllexport) void* GetHSteamUser() {
+        diag::log("exp: GetHSteamUser");
         if (SteamProxy::Instance().IsSteamLoaded()) {
             auto orig = (void*(*)())SteamProxy::Instance().GetOriginal("GetHSteamUser");
             if (orig) return orig();

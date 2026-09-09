@@ -32,11 +32,11 @@ class SdkSteamUser {
 public:
     virtual int GetHSteamUser() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetHSteamUser\n"); fclose(f); } return 1; }
     virtual bool BLoggedOn() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "BLoggedOn\n"); fclose(f); } return true; }
-    virtual __int64 GetSteamID() { return 0x110000100001LL; }
-    virtual int InitiateGameConnection_DEPRECATED(void* pAuthBlob, int cbMaxAuthBlob, SdkSteamID steamID, unsigned int unIPServer, unsigned short usPortServer, bool bSecure) { if (pAuthBlob && cbMaxAuthBlob > 0) ((char*)pAuthBlob)[0] = 0; return 0; }
+    virtual __int64 GetSteamID() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetSteamID\n"); fclose(f); } return 0x110000100001LL; }
+    virtual int InitiateGameConnection_DEPRECATED(void* pAuthBlob, int cbMaxAuthBlob, SdkSteamID steamID, unsigned int unIPServer, unsigned short usPortServer, bool bSecure) { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "InitiateGameConnection\n"); fclose(f); } if (pAuthBlob && cbMaxAuthBlob > 0) ((char*)pAuthBlob)[0] = 0; return 0; }
     virtual void TerminateGameConnection_DEPRECATED(unsigned int unIPServer, unsigned short usPortServer) {}
     virtual void TrackAppUsageEvent(SdkSteamID gameID, int eAppUsageEvent, const char* pchExtraInfo) {}
-    virtual bool GetUserDataFolder(char* pchBuffer, int cubBuffer) { if (pchBuffer && cubBuffer > 0) { pchBuffer[0] = '.'; pchBuffer[1] = 0; } return true; }
+    virtual bool GetUserDataFolder(char* pchBuffer, int cubBuffer) { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetUserDataFolder\n"); fclose(f); } if (pchBuffer && cubBuffer > 0) { pchBuffer[0] = '.'; pchBuffer[1] = 0; } return true; }
     virtual void StartVoiceRecording() {}
     virtual void StopVoiceRecording() {}
     virtual int GetAvailableVoice(unsigned int* pcbCompressed, unsigned int* pcbUncompressed, unsigned int nUncompressedVoiceDesiredSampleRate) { if (pcbCompressed) *pcbCompressed = 0; if (pcbUncompressed) *pcbUncompressed = 0; return 0; }

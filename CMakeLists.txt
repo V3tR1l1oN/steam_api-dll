@@ -27,6 +27,7 @@ set(SOURCES
     src/interfaces/steam_utils.cpp
     src/interfaces/steam_apps.cpp
     src/interfaces/steam_music.cpp
+    src/interfaces/vproxy.cpp
     src/interfaces/sdk_guard.cpp
 )
 

@@ -108,8 +108,9 @@ bool SteamProxy::Init() {
         // Проксируем на steamclient: его CreateInterface принимает те же строки версий.
         m_hSteamAPI = hSteamClient;
         m_bSteamLoaded = true;
-        m_bSteamClientMode = true;
-        diag::log("steamclient fallback OK");
+        // steamclient fallback отключен: краш внутри steamclient без полной
+        // Valve-инициализации. Работаем чисто оффлайн на SDK-совместимых объектах.
+        FreeLibrary(hSteamClient);
         return true;
     }
     diag::log("all proxy paths failed");
