@@ -9,7 +9,10 @@ static char g_path[MAX_PATH] = {0};
 
 void open() {
     if (g_file) return;
-    GetModuleFileNameA((HMODULE)&open, g_path, MAX_PATH);
+    HMODULE hSelf = nullptr;
+    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)&open, &hSelf);
+    GetModuleFileNameA(hSelf, g_path, MAX_PATH);
     char* slash = strrchr(g_path, '\\');
     if (!slash) slash = strrchr(g_path, '/');
     if (slash) *(slash + 1) = '\0';
@@ -40,3 +43,17 @@ void close() {
 }
 
 } // namespace diag
+void diag::logContext(PEXCEPTION_POINTERS ep) {
+    if (!g_file || !ep || !ep->ContextRecord) return;
+    CONTEXT* c2 = ep->ContextRecord;
+    fprintf(g_file, "    EAX=%08lX EBX=%08lX ECX=%08lX EDX=%08lX\n",
+        (unsigned long)c2->Eax, (unsigned long)c2->Ebx, (unsigned long)c2->Ecx, (unsigned long)c2->Edx);
+    fprintf(g_file, "    ESI=%08lX EDI=%08lX ESP=%08lX EBP=%08lX EIP=%08lX\n",
+        (unsigned long)c2->Esi, (unsigned long)c2->Edi, (unsigned long)c2->Esp,
+        (unsigned long)c2->Ebp, (unsigned long)c2->Eip);
+    unsigned long* sp = (unsigned long*)c2->Esp;
+    fprintf(g_file, "    stack:");
+    for (int i = 0; i < 16; ++i) fprintf(g_file, " %08lX", sp[i]);
+    fprintf(g_file, "\n");
+    fflush(g_file);
+}

@@ -22,6 +22,7 @@ static long __stdcall CrashHandler(PEXCEPTION_POINTERS ep) {
             (LPCSTR)ep->ExceptionRecord->ExceptionAddress, &hMod)) {
             GetModuleFileNameA(hMod, modName, MAX_PATH);
         }
+        diag::logContext(ep);
         diag::log("!!! ACCESS VIOLATION: pc=%p addr=%p rw=%d module=%s",
             ep->ExceptionRecord->ExceptionAddress,
             ep->ExceptionRecord->ExceptionInformation[1],
@@ -142,6 +143,18 @@ extern "C" {
     }
     __declspec(dllexport) void* SteamInternal_FindOrCreateUserInterface(void* h, const char* v) {
         diag::log("FindOrCreateUserInterface h=%p v=%s", h, v ? v : "(null)");
+        if (SteamProxy::Instance().IsSteamClientMode()) {
+            // steamclient-режим: интерфейсы напрямую из ядра Steam по версии
+            auto ci = (void*(*)(const char*, int*))SteamProxy::Instance().GetClientCreateInterface();
+            if (ci) {
+                int rc = 0;
+                void* r = ci(v, &rc);
+                diag::log("  -> steamclient CreateInterface(%s) = %p rc=%d", v ? v : "?", r, rc);
+                return r;
+            }
+            diag::log("  -> steamclient CreateInterface not found");
+            return nullptr;
+        }
         auto orig = (void*(*)(void*, const char*))SteamProxy::Instance().GetOriginal("SteamInternal_FindOrCreateUserInterface");
         if (orig) { void* r = orig(h, v); diag::log("  -> orig=%p", r); return r; }
         // Оффлайн: по версии строки выбираем vtable-совместимый объект
@@ -156,20 +169,10 @@ extern "C" {
         }
         void* d = &s_SdkUser; diag::log("  -> offline default User %p", d); return d;
     }
-    static bool g_gsInitAttempted = false;
     __declspec(dllexport) void* SteamInternal_FindOrCreateGameServerInterface(void* h, const char* v) {
         diag::log("FindOrCreateGameServerInterface h=%p v=%s", h, v ? v : "(null)");
         auto orig = (void*(*)(void*, const char*))SteamProxy::Instance().GetOriginal("SteamInternal_FindOrCreateGameServerInterface");
-        if (orig) {
-            // При первом запросе GameServer-интерфейса инициализируем GameServer в Valve DLL,
-            // иначе orig вернёт NULL и движок упадёт на vtable-вызове.
-            void* r = orig(h, v);
-            diag::log("  -> orig=%p", r);
-            // GS-протокол: движок сам вызывает SteamInternal_GameServer_Init через IAT
-            // и ПОСЛЕ этого повторяет запрос интерфейса. Возвращаем NULL как есть —
-            // это часть протокола Valve, fallback-объект здесь ломает инициализацию.
-            return r;
-        }
+        if (orig) { void* r = orig(h, v); diag::log("  -> orig=%p", r); return r; }
         void* r = &s_SdkUser; diag::log("  -> offline default (gs) %p", r); return r;
     }
     // Универсальная заглушка: движок может вызывать любой слот контекста как функцию
@@ -209,6 +212,49 @@ extern "C" {
         // КРИТИЧНО: писать можно ТОЛЬКО 3 слота (12 байт) — дальше лежат данные/коды движка!
         InitOfflineContext();
         void** pCtxSlots = (void**)ctx;
+        if (ctx && SteamProxy::Instance().IsSteamClientMode()) {
+            // steamclient-режим: ISteamClient021 → CreateSteamPipe → ConnectToGlobalUser
+            // → GetISteamUser/Friends/Utils. Движок получает НАСТОЯЩИЕ интерфейсы.
+            auto ci = (void*(*)(const char*, int*))SteamProxy::Instance().GetClientCreateInterface();
+            void* client = ci ? ci("SteamClient021", nullptr) : nullptr;
+            diag::log("  steamclient client=%p", client);
+            SteamProxy::Instance().SetSteamClientObj(client);
+            if (client) {
+                // Проверка авторизации процесса в Steam
+                auto blogged = (bool(*)())::GetProcAddress(SteamProxy::Instance().GetSteamClientModule(), "Steam_BLoggedOn");
+                auto bconn = (bool(*)())::GetProcAddress(SteamProxy::Instance().GetSteamClientModule(), "Steam_BConnected");
+                diag::log("  steamclient BLoggedOn=%d BConnected=%d",
+                    blogged ? (int)blogged() : -1, bconn ? (int)bconn() : -1);
+                void** vt = *(void***)client;
+                typedef int (__thiscall *CreatePipeFn)(void*);
+                typedef int (__thiscall *ConnectFn)(void*, int);
+                typedef void* (__thiscall *GetIfaceFn)(void*, int, int, const char*);
+                int hPipe = ((CreatePipeFn)vt[0])(client);
+                int hUser = ((ConnectFn)vt[2])(client, hPipe);
+                diag::log("  steamclient pipe=%d user=%d", hPipe, hUser);
+                // ISteamClient021 vtable: [5]GetISteamUser [8]GetISteamFriends [9]GetISteamUtils
+                pCtxSlots[0] = ((GetIfaceFn)vt[5])(client, hUser, hPipe, "SteamUser023");
+                pCtxSlots[1] = ((GetIfaceFn)vt[8])(client, hUser, hPipe, "SteamFriends017");
+                typedef void* (__thiscall *GetUtilsFn)(void*, int, const char*);
+                pCtxSlots[2] = ((GetUtilsFn)vt[9])(client, hPipe, "SteamUtils010");
+                diag::log("  steamclient: user=%p friends=%p utils=%p",
+                    pCtxSlots[0], pCtxSlots[1], pCtxSlots[2]);
+                // ISteamClient021 vtable: [10]GetISteamMatchmaking [13]GetISteamUserStats
+                // [15]GetISteamApps
+                typedef void* (__thiscall *GetMMFn)(void*, int, int, const char*);
+                pCtxSlots[3] = ((GetMMFn)vt[10])(client, hUser, hPipe, "SteamMatchmaking009");
+                if (!pCtxSlots[3]) {
+                    // Matchmaking может отсутствовать в текущем steamclient —
+                    // отдаём наш SDK-совместимый оффлайн-объект (лобби локальные)
+                    pCtxSlots[3] = &s_SteamMatchmaking;
+                    diag::log("  mm NULL -> offline matchmaking");
+                }
+                pCtxSlots[4] = ((GetIfaceFn)vt[13])(client, hUser, hPipe, "STEAMUSERSTATS_INTERFACE_VERSION012");
+                pCtxSlots[5] = ((GetIfaceFn)vt[15])(client, hUser, hPipe, "STEAMAPPS_INTERFACE_VERSION008");
+                diag::log("  steamclient: mm=%p stats=%p apps=%p",
+                    pCtxSlots[3], pCtxSlots[4], pCtxSlots[5]);
+            }
+        }
         if (ctx) {
             // GetHSteamUser вызвался — движок идёт по слотам ПОДРЯД (CSteamAPIContext):
             // [0] ISteamUser, [1] ISteamFriends, [2] ISteamUtils, [3] ISteamMatchmaking,

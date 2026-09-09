@@ -7,4 +7,5 @@ namespace diag {
     void open();
     void log(const char* fmt, ...);
     void close();
+    void logContext(PEXCEPTION_POINTERS ep);
 }
