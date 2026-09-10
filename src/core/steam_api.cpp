@@ -24,6 +24,18 @@ static long __stdcall CrashHandler(PEXCEPTION_POINTERS ep) {
             GetModuleFileNameA(hMod, modName, MAX_PATH);
         }
         diag::logContext(ep);
+        // ОБХОД: pc=0 означает call по NULL-указателю. Возвращаем исполнение
+        // на return-адрес со стека (пропускаем вызов). EAX=0 — безопасный возврат.
+        if (ep->ExceptionRecord->ExceptionAddress == (void*)0 &&
+            ep->ExceptionRecord->ExceptionInformation[0] == 8) {
+            CONTEXT* c2 = ep->ContextRecord;
+            unsigned long retAddr = *(unsigned long*)c2->Esp;
+            c2->Eip = retAddr;
+            c2->Esp += 4;  // убрать return-адрес со стека (cdecl)
+            c2->Eax = 0;   // безопасный возврат
+            diag::log("  -> skipped call to NULL, continue at %p", (void*)retAddr);
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
         diag::log("!!! ACCESS VIOLATION: pc=%p addr=%p rw=%d module=%s",
             ep->ExceptionRecord->ExceptionAddress,
             ep->ExceptionRecord->ExceptionInformation[1],
@@ -130,6 +142,8 @@ static SdkSteamFriends s_SdkFriends;
 static SdkSteamApps s_SdkApps;
 static SdkSteamUserStats s_SdkUserStats;
 static SdkSteamNetworking s_SdkNetworking;
+static SdkSteamUtils s_SdkUtils;
+static SdkSteamMatchmaking s_SdkMM;
 
 static void* SteamInternal_CreateInterface(const char* name) {
     diag::log("static CreateInterface: %s", name ? name : "(null)");
@@ -168,7 +182,7 @@ extern "C" {
             if (strncmp(v, "STEAMUSERSTATS", 14) == 0 || strncmp(v, "SteamUserStats", 14) == 0) { void* r = &s_SdkUserStats; diag::log("  -> offline Stats %p", r); return r; }
             if (strncmp(v, "SteamNetworkingSockets", 22) == 0) { void* r = &s_SdkNetworking; diag::log("  -> offline Net %p", r); return r; }
         }
-        void* d = &s_SdkUser; diag::log("  -> offline default User %p", d); return d;
+        diag::log("  -> unknown version, returning NULL"); return nullptr;
     }
     __declspec(dllexport) void* SteamInternal_FindOrCreateGameServerInterface(void* h, const char* v) {
         diag::log("FindOrCreateGameServerInterface h=%p v=%s", h, v ? v : "(null)");
@@ -200,104 +214,43 @@ extern "C" {
         s_offlineContext[8]  = &s_SteamMusic;
         s_offlineContextInit = true;
     }
-    __declspec(dllexport) void* SteamInternal_ContextInit(void* ctx) {
-        diag::log("SteamInternal_ContextInit ctx=%p", ctx);
+    // SteamInternal_ContextInit — по Goldberg: pContextInitData — указатель на
+    // struct ContextInitData { void (*pFn)(void* pCtx); uintptr_t counter; CSteamAPIContext ctx; }
+    // 1. local_ctx = &data->ctx  (адрес поля ctx внутри структуры)
+    // 2. Если counter устарел: вызвать data->pFn(local_ctx) — pFn заполнит ctx
+    //    интерфейсами (pFn вызывает SteamInternal_FindOrCreateUserInterface...)
+    // 3. Вернуть local_ctx
+    __declspec(dllexport) void* SteamInternal_ContextInit(void* pContextInitData) {
+        diag::log("ContextInit data=%p", pContextInitData);
         auto orig = (void*(*)(void*))SteamProxy::Instance().GetOriginal("SteamInternal_ContextInit");
-        if (orig) { void* r = orig(ctx); diag::log("  -> orig=%p", r); return r; }
-        // ДИЗАСЕМБЛЕР hw.dll раскрыл раскладку: в .data движка лежат ТРИ структуры,
-        // подряд по 12 байт (3 слота): 0x...D274, 0x...D280, 0x...D28C.
-        // Движок вызывает ContextInit(адрес_одной_из_них) и затем читает слоты [0..2]:
-        //   D274[0].vtable[0] и [1] — вызовы без аргументов (ISteamUser: GetHSteamUser/BLoggedOn)
-        //   D280[0].vtable[46] — вызов с аргументом (ISteamNetworkingSockets012: CreateFakeUDPPort)
-        //   D28C[0].vtable[0]  — вызов без аргументов
-        // КРИТИЧНО: писать можно ТОЛЬКО 3 слота (12 байт) — дальше лежат данные/коды движка!
-        InitOfflineContext();
-        void** pCtxSlots = (void**)ctx;
-        if (ctx && SteamProxy::Instance().IsSteamClientMode()) {
-            // steamclient-режим: ISteamClient021 → CreateSteamPipe → ConnectToGlobalUser
-            // → GetISteamUser/Friends/Utils. Движок получает НАСТОЯЩИЕ интерфейсы.
-            auto ci = (void*(*)(const char*, int*))SteamProxy::Instance().GetClientCreateInterface();
-            void* client = ci ? ci("SteamClient021", nullptr) : nullptr;
-            diag::log("  steamclient client=%p", client);
-            SteamProxy::Instance().SetSteamClientObj(client);
-            if (client) {
-                // Проверка авторизации процесса в Steam
-                auto blogged = (bool(*)())::GetProcAddress(SteamProxy::Instance().GetSteamClientModule(), "Steam_BLoggedOn");
-                auto bconn = (bool(*)())::GetProcAddress(SteamProxy::Instance().GetSteamClientModule(), "Steam_BConnected");
-                diag::log("  steamclient BLoggedOn=%d BConnected=%d",
-                    blogged ? (int)blogged() : -1, bconn ? (int)bconn() : -1);
-                void** vt = *(void***)client;
-                typedef int (__thiscall *CreatePipeFn)(void*);
-                typedef int (__thiscall *ConnectFn)(void*, int);
-                typedef void* (__thiscall *GetIfaceFn)(void*, int, int, const char*);
-                int hPipe = ((CreatePipeFn)vt[0])(client);
-                int hUser = ((ConnectFn)vt[2])(client, hPipe);
-                diag::log("  steamclient pipe=%d user=%d", hPipe, hUser);
-                // ISteamClient021 vtable: [5]GetISteamUser [8]GetISteamFriends [9]GetISteamUtils
-                // VPROXY: лог-прокси вместо реального user — отловим call 0x0
-                pCtxSlots[0] = vproxy::GetProxyUserObj();
-                pCtxSlots[1] = ((GetIfaceFn)vt[8])(client, hUser, hPipe, "SteamFriends017");
-                typedef void* (__thiscall *GetUtilsFn)(void*, int, const char*);
-                pCtxSlots[2] = ((GetUtilsFn)vt[9])(client, hPipe, "SteamUtils010");
-                diag::log("  steamclient: user=%p friends=%p utils=%p",
-                    pCtxSlots[0], pCtxSlots[1], pCtxSlots[2]);
-                // ISteamClient021 vtable: [10]GetISteamMatchmaking [13]GetISteamUserStats
-                // [15]GetISteamApps
-                typedef void* (__thiscall *GetMMFn)(void*, int, int, const char*);
-                pCtxSlots[3] = ((GetMMFn)vt[10])(client, hUser, hPipe, "SteamMatchmaking009");
-                if (!pCtxSlots[3]) {
-                    // Matchmaking может отсутствовать в текущем steamclient —
-                    // отдаём наш SDK-совместимый оффлайн-объект (лобби локальные)
-                    pCtxSlots[3] = &s_SteamMatchmaking;
-                    diag::log("  mm NULL -> offline matchmaking");
-                }
-                pCtxSlots[4] = ((GetIfaceFn)vt[13])(client, hUser, hPipe, "STEAMUSERSTATS_INTERFACE_VERSION012");
-                pCtxSlots[5] = ((GetIfaceFn)vt[15])(client, hUser, hPipe, "STEAMAPPS_INTERFACE_VERSION008");
-                diag::log("  steamclient: mm=%p stats=%p apps=%p",
-                    pCtxSlots[3], pCtxSlots[4], pCtxSlots[5]);
-            }
+        if (orig) { void* r = orig(pContextInitData); diag::log("  -> orig=%p", r); return r; }
+        // Оффлайн: pContextInitData = ContextInitData { pFn, counter, ctx }
+        // Вызываем pFn(local_ctx) — движковая функция заполнит ctx интерфейсами
+        // через наши FindOrCreateUserInterface экспорты.
+        void** pData = (void**)pContextInitData;
+        void* pFn = pData[0];     // callback движка (заполняет ctx)
+        void* localCtx = nullptr;
+        if (pFn) {
+            // localCtx = pContextInitData + 0x10 (после pFn + counter)
+            void** ctxSlots = (void**)((unsigned char*)pContextInitData + 0x10);
+            localCtx = (void*)ctxSlots;
+            // Заполняем ВСЕ слоты валидными SDK объектами ДО вызова pFn,
+            // чтобы когда pFn вызывает FindOrCreateUserInterface, наш экспорт
+            // вернул SDK объект — и движковый callback записал его в ctx.
+            ctxSlots[0] = &s_SdkUser;
+            ctxSlots[1] = &s_SdkFriends;
+            ctxSlots[2] = &s_SdkUtils;
+            ctxSlots[3] = &s_SdkMM;
+            ctxSlots[4] = &s_SdkUserStats;
+            ctxSlots[5] = &s_SdkApps;
+            ctxSlots[6] = &s_SdkNetworking;
+            // Вызываем pFn(local_ctx) — pFn заполнит ctx слоты интерфейсами.
+            // pFn вызывает FindOrCreateUserInterface → наш экспорт вернёт SDK объекты
+            typedef void (__cdecl *PFnFn)(void*);
+            ((PFnFn)pFn)(localCtx);
+            diag::log("  -> called pFn, ctx at %p", localCtx);
         }
-        if (ctx) {
-            // ЭМУЛЯЦИЯ CALLBACK FLOW VALVE: движок после ContextInit ждёт, что
-            // интерфейсы были созданы через FindOrCreateUserInterface — при этом
-            // инициализируются подсистемы движка. Вызываем наш экспорт для
-            // каждого интерфейса (он отдаёт наши SDK-совместимые объекты).
-            void* pUser    = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamUser023");
-            void* pFriends = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamFriends017");
-            void* pUtils   = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamUtils010");
-            void* pMM      = SteamInternal_FindOrCreateUserInterface((void*)1, "SteamMatchmaking009");
-            void* pStats   = SteamInternal_FindOrCreateUserInterface((void*)1, "STEAMUSERSTATS_INTERFACE_VERSION012");
-            void* pApps    = SteamInternal_FindOrCreateUserInterface((void*)1, "STEAMAPPS_INTERFACE_VERSION008");
-            diag::log("  flow: user=%p friends=%p utils=%p mm=%p stats=%p apps=%p",
-                pUser, pFriends, pUtils, pMM, pStats, pApps);
-            // GetHSteamUser вызвался — движок идёт по слотам ПОДРЯД (CSteamAPIContext):
-            // [0] ISteamUser, [1] ISteamFriends, [2] ISteamUtils, [3] ISteamMatchmaking,
-            // [4] ISteamUserStats, [5] ISteamApps, [6] ISteamNetworking.
-            // NULL-слот = вызов по нулю, поэтому ВСЕ слоты — валидные объекты.
-            pCtxSlots[0] = vproxy::GetProxyUserObj(); // LOG: отловим какой слот вызывает 0x0
-            pCtxSlots[1] = pFriends;
-            pCtxSlots[2] = pUtils;
-            pCtxSlots[3] = pMM;
-            pCtxSlots[4] = pStats;
-            pCtxSlots[5] = pApps;
-            pCtxSlots[6] = &s_SdkNetworking;
-            // Стек-резолв показал: движок вызывает и слоты дальше [6] через
-            // CSteamAPIContext-подобную структуру (RemoteStorage, Screenshots,
-            // HTTP, Controller, UGC, AppList, Music, Video, Inventory, ...).
-            // Заполняем до 16 слотов нашими объектами, чтобы ни один вызов
-            // не ушёл в NULL.
-            pCtxSlots[7]  = &s_SdkApps;          // RemoteStorage
-            pCtxSlots[8]  = &s_SdkApps;          // Screenshots
-            pCtxSlots[9]  = &s_SdkApps;          // HTTP
-            pCtxSlots[10] = &s_SdkApps;          // Controller
-            pCtxSlots[11] = &s_SdkApps;          // UGC
-            pCtxSlots[12] = &s_SdkApps;          // AppList
-            pCtxSlots[13] = &s_SteamMusic;       // Music
-            pCtxSlots[14] = &s_SdkApps;          // MusicRemote
-            pCtxSlots[15] = &s_SdkApps;          // HTMLSurface
-            diag::log("  -> filled 16 slots of engine ctx at %p", ctx);
-        }
-        return ctx;
+        return localCtx;
     }
     __declspec(dllexport) bool SteamAPI_Init() {
         diag::log("SteamAPI_Init called");
@@ -365,7 +318,10 @@ extern "C" {
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH) {
-        DisableThreadLibraryCalls(hModule);
+        // ВАЖНО: НЕ вызываем DisableThreadLibraryCalls — движок создаёт
+        // дополнительные потоки (сеть, рендер), и CRT требует DLL_THREAD_ATTACH
+        // для инициализации per-thread data. Без этого getptd крашится
+        // в новых потоках.
         diag::open();
         diag::log("=== DllMain ATTACH, module=%p ===", (void*)hModule);
         g_veh = AddVectoredExceptionHandler(1, CrashHandler);

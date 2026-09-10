@@ -5,6 +5,8 @@
 namespace vproxy {
 
 SdkSteamUser g_realUser;
+SdkSteamUtils g_realUtils;
+SdkSteamMatchmaking g_realMM;
 void* g_logVtable[33];
 void* g_logObjVtable[33];
 bool g_initialized = false;
@@ -189,4 +191,24 @@ void* GetProxyUserObj() {
     return (void*)proxyObj;
 }
 
+} // namespace vproxy
+namespace vproxy {
+static const char* friendsMethods[10] = {
+    "GetPersonaName", "SetPersonaName", "GetPersonaState", "GetFriendCount",
+    "GetFriendByIndex", "GetFriendRelationship", "GetFriendPersonaState",
+    "GetFriendPersonaName", "GetFriendGamePlayed", "GetFriendPersonaNameHistory"
+};
+static void* g_friendsVtable[10];
+static bool g_friendsInit = false;
+void initFriends() {
+    if (g_friendsInit) return;
+    for (int i = 0; i < 10; ++i) g_friendsVtable[i] = nullptr;
+    g_friendsInit = true;
+}
+void* GetProxyFriendsObj() {
+    initFriends();
+    static void* proxyFriends[10] = { nullptr };
+    // все слоты возвращают безопасные 0
+    return (void*)proxyFriends;
+}
 } // namespace vproxy

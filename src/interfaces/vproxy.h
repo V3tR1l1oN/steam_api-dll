@@ -3,15 +3,17 @@
 // Цель: отловить какой vtable-метод движок вызывает перед call 0x0.
 #pragma once
 #include "../interfaces/sdk_compat.h"
+#include "../interfaces/sdk_guard.h"
 
 namespace vproxy {
 
-// Реальный объект, на который пробрасываем
+// Реальные SDK-совместимые объекты (используются в контексте движка)
 extern SdkSteamUser g_realUser;
+extern SdkSteamUtils g_realUtils;
+extern SdkSteamMatchmaking g_realMM;
 
 // Лог-таблица (заполняется в init)
 extern void* g_logVtable[33];
-extern void* g_logObjVtable[33]; // vtable для объекта (указатель на g_logVtable)
 extern bool g_initialized;
 
 void init();

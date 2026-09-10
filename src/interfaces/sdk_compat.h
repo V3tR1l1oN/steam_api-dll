@@ -30,13 +30,13 @@ struct SdkSteamID {
 // ISteamUser023 — 33 метода, порядок по isteamuser.h
 class SdkSteamUser {
 public:
-    virtual int GetHSteamUser() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetHSteamUser\n"); fclose(f); } return 1; }
-    virtual bool BLoggedOn() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "BLoggedOn\n"); fclose(f); } return true; }
-    virtual __int64 GetSteamID() { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetSteamID\n"); fclose(f); } return 0x110000100001LL; }
-    virtual int InitiateGameConnection_DEPRECATED(void* pAuthBlob, int cbMaxAuthBlob, SdkSteamID steamID, unsigned int unIPServer, unsigned short usPortServer, bool bSecure) { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "InitiateGameConnection\n"); fclose(f); } if (pAuthBlob && cbMaxAuthBlob > 0) ((char*)pAuthBlob)[0] = 0; return 0; }
+    virtual int GetHSteamUser(){ return 1; }
+    virtual bool BLoggedOn(){ return true; }
+    virtual __int64 GetSteamID(){ return 0x110000100001LL; }
+    virtual int InitiateGameConnection_DEPRECATED(void* pAuthBlob, int cbMaxAuthBlob, SdkSteamID steamID, unsigned int unIPServer, unsigned short usPortServer, bool bSecure){ return 0; }
     virtual void TerminateGameConnection_DEPRECATED(unsigned int unIPServer, unsigned short usPortServer) {}
     virtual void TrackAppUsageEvent(SdkSteamID gameID, int eAppUsageEvent, const char* pchExtraInfo) {}
-    virtual bool GetUserDataFolder(char* pchBuffer, int cubBuffer) { FILE* f = fopen("sdkuser.log", "a"); if (f) { fprintf(f, "GetUserDataFolder\n"); fclose(f); } if (pchBuffer && cubBuffer > 0) { pchBuffer[0] = '.'; pchBuffer[1] = 0; } return true; }
+    virtual bool GetUserDataFolder(char* pchBuffer, int cubBuffer){ return true; }
     virtual void StartVoiceRecording() {}
     virtual void StopVoiceRecording() {}
     virtual int GetAvailableVoice(unsigned int* pcbCompressed, unsigned int* pcbUncompressed, unsigned int nUncompressedVoiceDesiredSampleRate) { if (pcbCompressed) *pcbCompressed = 0; if (pcbUncompressed) *pcbUncompressed = 0; return 0; }
@@ -71,19 +71,19 @@ public:
     virtual unsigned int GetSecondsSinceAppActive() { return 0; }
     virtual unsigned int GetSecondsSinceComputerActive() { return 0; }
     virtual unsigned long long GetConnectedUniverse() { return 1; }
-    virtual unsigned int GetServerRealTime() { return (unsigned int)time(nullptr); }
+    virtual unsigned int GetServerRealTime(){ return (unsigned int)time(nullptr); }
     virtual const char* GetIPCountry() { return "RU"; }
     virtual bool GetImageSize(int iImage, unsigned int* pnWidth, unsigned int* pnHeight) { if (pnWidth) *pnWidth = 0; if (pnHeight) *pnHeight = 0; return false; }
     virtual bool GetImageRGBA(int iImage, unsigned char* pubDest, int nDestBufferSize) { return false; }
     virtual bool GetCSERIPPort(unsigned int* unIP, unsigned short* usPort) { return false; }
     virtual unsigned int GetCurrentBatteryPower() { return 255; }
-    virtual unsigned int GetAppID() { return 10; }
+    virtual unsigned int GetAppID(){ return 10; }
     virtual void SetOverlayNotificationPosition(int ePos) {}
     virtual bool IsAPICallCompleted(SteamAPICall_t hSteamAPICall, bool* pbFailed) { if (pbFailed) *pbFailed = true; return false; }
     virtual int GetAPICallFailureReason(SteamAPICall_t hSteamAPICall) { return 0; }
     virtual bool GetAPICallResult(SteamAPICall_t hSteamAPICall, void* pCallback, int cubCallback, int iCallbackExpected, bool* pbFailed) { if (pbFailed) *pbFailed = true; return false; }
     virtual unsigned int GetIPCCallCount() { return 0; }
-    virtual bool IsOverlayEnabled() { return false; }
+    virtual bool IsOverlayEnabled(){ return false; }
     virtual bool BOverlayNeedsPresent() { return false; }
     virtual bool CheckFileSignature(const char* szFileName) { return false; }
     virtual bool ShowGamepadTextInput(int eInputMode, int eTextInputLineMode, const char* pchDescription, unsigned int unCharMax, const char* pchExistingText) { return false; }

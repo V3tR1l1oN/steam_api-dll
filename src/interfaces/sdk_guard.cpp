@@ -237,3 +237,59 @@ bool SdkSteamMatchmaking::SetLinkedLobby(SdkSteamID, SdkSteamID) { return false;
 // SdkSteamUser::GetSteamID: движок вызывает vtable[2] и (по ABI Valve) не передаёт
 // sret-указатель, но MSVC генерирует запись по [ebp+8]. При невалидном адресе — AV.
 // SEH перехватывает AV, чтобы процесс не умирал.
+
+void SdkSteamMatchmaking::CheckForPSNGameBootInvite(unsigned int) {}
+void SdkSteamMatchmaking::ServerResponded(void*, int) {}
+void SdkSteamMatchmaking::ServerFailedToRespond(void*, int) {}
+void SdkSteamMatchmaking::RefreshComplete(void*, int) {}
+void SdkSteamMatchmaking::ServerResponded2(void*) {}
+void SdkSteamMatchmaking::ServerFailedToRespond2() {}
+void SdkSteamMatchmaking::AddPlayerToList(const char*, int, float) {}
+void SdkSteamMatchmaking::PlayersFailedToRespond() {}
+void SdkSteamMatchmaking::PlayersRefreshComplete() {}
+void SdkSteamMatchmaking::RulesResponded(const char*, const char*) {}
+void SdkSteamMatchmaking::RulesFailedToRespond() {}
+void SdkSteamMatchmaking::RulesRefreshComplete() {}
+void* SdkSteamMatchmaking::RequestInternetServerList(AppId_t, void**, unsigned int, void*) { return nullptr; }
+void* SdkSteamMatchmaking::RequestLANServerList(AppId_t, void*) { return nullptr; }
+void* SdkSteamMatchmaking::RequestFriendsServerList(AppId_t, void**, unsigned int, void*) { return nullptr; }
+void* SdkSteamMatchmaking::RequestFavoritesServerList(AppId_t, void**, unsigned int, void*) { return nullptr; }
+void* SdkSteamMatchmaking::RequestHistoryServerList(AppId_t, void**, unsigned int, void*) { return nullptr; }
+void* SdkSteamMatchmaking::RequestSpectatorServerList(AppId_t, void**, unsigned int, void*) { return nullptr; }
+void SdkSteamMatchmaking::ReleaseRequest(void*) {}
+void* SdkSteamMatchmaking::GetServerDetails(void*, int) { return nullptr; }
+void SdkSteamMatchmaking::CancelQuery(void*) {}
+void SdkSteamMatchmaking::RefreshQuery(void*) {}
+bool SdkSteamMatchmaking::IsRefreshing(void*) { return false; }
+int SdkSteamMatchmaking::GetServerCount(void*) { return 0; }
+void SdkSteamMatchmaking::RefreshServer(void*, int) {}
+int SdkSteamMatchmaking::PingServer(unsigned int, unsigned short, void*) { return 0; }
+int SdkSteamMatchmaking::PlayerDetails(unsigned int, unsigned short, void*) { return 0; }
+int SdkSteamMatchmaking::ServerRules(unsigned int, unsigned short, void*) { return 0; }
+void SdkSteamMatchmaking::CancelServerQuery(int) {}
+int SdkSteamMatchmaking::AddGameSearchParams(const char*, const char*) { return 0; }
+int SdkSteamMatchmaking::SearchForGameWithLobby(SdkSteamID, int, int) { return 0; }
+int SdkSteamMatchmaking::SearchForGameSolo(int, int) { return 0; }
+int SdkSteamMatchmaking::AcceptGame() { return 0; }
+int SdkSteamMatchmaking::DeclineGame() { return 0; }
+int SdkSteamMatchmaking::RetrieveConnectionDetails(SdkSteamID, char*, int) { return 0; }
+int SdkSteamMatchmaking::EndGameSearch() { return 0; }
+int SdkSteamMatchmaking::SetGameHostParams(const char*, const char*) { return 0; }
+int SdkSteamMatchmaking::SetConnectionDetails(const char*, int) { return 0; }
+int SdkSteamMatchmaking::RequestPlayersForGame(int, int, int) { return 0; }
+int SdkSteamMatchmaking::HostConfirmGameStart(unsigned long long) { return 0; }
+int SdkSteamMatchmaking::CancelRequestPlayersForGame() { return 0; }
+int SdkSteamMatchmaking::SubmitPlayerResult(unsigned long long, SdkSteamID, int) { return 0; }
+int SdkSteamMatchmaking::EndGame(unsigned long long) { return 0; }
+unsigned int SdkSteamMatchmaking::GetNumActiveBeacons() { return 0; }
+unsigned long long SdkSteamMatchmaking::GetBeaconByIndex(unsigned int) { return 0; }
+bool SdkSteamMatchmaking::GetBeaconDetails(unsigned long long, SdkSteamID*, void*, char*, int) { return false; }
+unsigned long long SdkSteamMatchmaking::JoinParty(unsigned long long) { return 0; }
+bool SdkSteamMatchmaking::GetNumAvailableBeaconLocations(void*, unsigned int) { return false; }
+bool SdkSteamMatchmaking::GetAvailableBeaconLocations(void*, unsigned int, unsigned int) { return false; }
+unsigned long long SdkSteamMatchmaking::CreateBeacon(unsigned int, void*, const char*, const char*) { return 0; }
+void SdkSteamMatchmaking::OnReservationCompleted(unsigned long long, SdkSteamID) {}
+void SdkSteamMatchmaking::CancelReservation(unsigned long long, SdkSteamID) {}
+unsigned long long SdkSteamMatchmaking::ChangeNumOpenSlots(unsigned long long, unsigned int) { return 0; }
+bool SdkSteamMatchmaking::DestroyBeacon(unsigned long long) { return false; }
+bool SdkSteamMatchmaking::GetBeaconLocationData(void*, int, char*, int) { return false; }

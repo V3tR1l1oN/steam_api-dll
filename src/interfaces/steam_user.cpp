@@ -39,11 +39,8 @@ bool CSteamUser::BIsSameUser(HSteamUser hUser) {
 }
 
 int CSteamUser::InitiateGameConnection(void* pAuthBlob, int cbMaxAuthBlob, CSteamID steamID, uint32 unGameServerIP, uint16 usGameServerPort, bool bSecure) {
-    // Возвращаем фиктивный тикет
-    if (pAuthBlob && cbMaxAuthBlob >= 4) {
-        memset(pAuthBlob, 0xAA, 4);
-        return 4;
-    }
+    // Оффлайн-режим: не пишем в буфер движка (избегаем порчи кучи при
+    // непредсказуемых размерах буфера), сообщаем что тикет не создан
     return 0;
 }
 
@@ -92,12 +89,8 @@ int CSteamUser::GetVoiceOptimalSampleRate() {
 }
 
 int CSteamUser::GetAuthSessionTicket(void* pTicket, int cbMaxTicket, uint32* pcbTicket) {
-    // Фиктивный тикет
-    if (pTicket && cbMaxTicket >= 4) {
-        memset(pTicket, 0xBB, 4);
-        if (pcbTicket) *pcbTicket = 4;
-        return 0;
-    }
+    // Оффлайн-режим: тикет не выдаём
+    if (pcbTicket) *pcbTicket = 0;
     return 0;
 }
 
